@@ -1,41 +1,33 @@
-# 🌴 3D Dream House – Modern Tropical Villa (Ursina 3D Engine)
+# Modern Tropical House — VPython
 
-An interactive 3D architectural visualization built with **Ursina Engine (Python)**, faithfully recreating the modern two-storey tropical villa from your reference photograph.
+An interactive VPython model of a two-storey tropical home with a white facade,
+timber upper-floor accents, a flat overhanging roof, a glazed balcony, a covered
+carport, and a landscaped front yard with a pool, tropical plants, driveway,
+stepping stones, and timber perimeter fence.
 
----
+## Run
 
-## 🚀 How to Run in VS Code
+1. Install Python 3 and VPython if needed:
 
-1. Open [`3DDreamHouse.py`](file:///C:/Users/RUFFA%20MAE%20RULIDA/.vscode/Graphics/3DDreamHouse.py) in VS Code.
-2. Click the ▶ **Run Python File** button in the top-right corner.
-3. A native 3D game window will open directly on your desktop!
+   ```powershell
+   python -m pip install vpython
+   ```
 
----
+2. Open `3DDreamHouse.py` in VS Code and select **Run Python File**.
+   VPython opens the interactive scene in your web browser.
 
-## 🎮 Interactive Controls & Hotkeys
+## Controls
 
-| Action | Control |
-| :--- | :--- |
-| **Orbit Camera** | Hold **Left/Right Arrow** to rotate around the house; hold **Up/Down Arrow** to change viewing angle; Scroll Wheel to zoom |
-| **Switch to Walkthrough** | Press **`TAB`** (or click the orange on-screen button) |
-| **Walk & Explore** | **`W` `A` `S` `D`** keys to walk through the gate and inside the house |
-| **Look Around** | Mouse look (in Walkthrough mode) |
-| **Sprint / Run** | Hold **`Shift`** while walking |
-| **Toggle Roof Cutaway** | Press **`R`** (hides/shows the roof to inspect interior layout) |
-| **Floor Selector** | Press **`1`** for Ground Floor, **`2`** for 2nd Floor, **`3`** for All Floors |
-| **Time of Day** | Press **`L`** to cycle Noon Sun &rarr; Golden Hour &rarr; Sunset &rarr; Night |
-| **Reset View** | Press **`H`** |
-| **Exit** | Press **`Q`** or click window close button |
+| Key/action | Result |
+| --- | --- |
+| Mouse drag | Orbit around the house |
+| Left / Right arrows | Orbit horizontally through a full 360° |
+| Up / Down arrows | Adjust the camera elevation |
+| `Home` | Reset the camera view |
+| Scroll wheel | Zoom in or out |
+| Shift + mouse drag | Pan the view |
 
----
-
-## 🏛️ Recreated Features from Reference Photo
-
-- **Semi-Realistic Finish**: Shadow-aware lighting, textured lawn, tinted glass with mullions, teak balcony boards, concrete joints, and layered planting.
-- **Two-Storey Modern Architecture**: White concrete walls, cantilevered second-floor balcony with slim black railings.
-- **Asymmetrical Overhanging Roof**: Extended horizontal eaves with warm teak wood slatted underside.
-- **Teak Slat Facade & Orange Accent**: Vertical wood cladding on front upper volume and terracotta accent panel on right wall with windows.
-- **Ground Floor Lounge & Carport**: Covered outdoor patio with sofa, plus attached carport with driveway.
-- **Left Exterior Staircase**: Floating dark timber steps ascending to the upper level.
-- **Landscape**: Natural curved pond with river boulders, stepping stone walkway, banana plants, frangipani trees, wooden gate, and endless green rice fields.
-- **Full Interior**: Living room with wood slat TV wall, dining area, kitchen with island, master suite with bed & bathtub, guest bedrooms, and balcony furniture.
+The model is built entirely with VPython primitives and directional/ambient
+lighting. VPython provides real-time interactive rendering; physically based
+materials, ray-traced reflections, global illumination, and soft shadows are
+not available in this renderer.

@@ -1,641 +1,425 @@
-"""
-================================================================================
-3D DREAM HOUSE: INTERACTIVE MODERN TROPICAL ARCHITECTURAL VISUALIZATION
-Powered by URSINA Engine
-================================================================================
-Recreating the exact Modern Two-Storey Tropical Villa from the reference image:
-- Modern Minimalist Architecture with Asymmetrical Slanted Roof
-- Cantilevered 2nd-Floor Balcony with Slim Black Metal Railings & Furniture
-- Ground-Floor Covered Lounge Patio with White Columns & Outdoor Sofa
-- Attached Covered Carport with Concrete Driveway on Right Wing
-- Decorative Organic Pond / Swimming Pool with River Rocks & Water
-- Stepping Stone Path, Traveler's Palms / Banana Plants, Frangipani Trees, Lawn
-- Surrounding Green Rice Paddy Fields stretching to the horizon
-- Complete Furnished Ground Floor (Living, Dining, Kitchen Island, Powder Room, Stairs)
-- Complete Furnished Second Floor (Master Suite, Ensuite, Bedrooms 2 & 3, Lounge, Balcony)
-- Full Orbit Camera (Inspect) & First-Person Walkthrough (WASD + Mouse Look)
-- Roof Cutaway & Floor Isolation (Ground, 2nd Floor, All)
-- Dynamic Time of Day Lighting (Day, Golden Hour, Sunset, Night)
-================================================================================
-"""
+"""Interactive VPython model of a modern tropical two-storey luxury home."""
 
-from ursina import *
-from ursina.prefabs.first_person_controller import FirstPersonController
-from ursina.models.procedural.cylinder import Cylinder
-from ursina.shaders.lit_with_shadows_shader import lit_with_shadows_shader
+from math import cos, pi, radians, sin
+
+from vpython import *
 
 
-app = Ursina(
-    title="Modern Tropical Villa - 3D Architectural Visualization",
-    borderless=False,
-    fullscreen=False,
-    size=(1280, 720),
-    vsync=True
+scene = canvas(
+    title="Modern Tropical Residence",
+    width=1280,
+    height=800,
+    background=vector(0.68, 0.81, 0.93),
+    center=vector(0, 3.2, 1.5),
+    range=22,
+)
+scene.autoscale = False
+scene.ambient = vector(0.62, 0.64, 0.68)
+scene.lights = []
+distant_light(direction=vector(-0.8, -1.1, -0.5), color=vector(1, 0.91, 0.78))
+distant_light(direction=vector(0.7, -0.8, 0.55), color=vector(0.72, 0.82, 1))
+scene.userspin = True
+scene.userzoom = True
+camera_target = vector(0, 3.2, 1.5)
+orbit = {
+    "yaw": radians(39.9),
+    "elevation": radians(19.7),
+    "distance": 38.1,
+}
+scene.caption = (
+    "\nArrow keys: orbit 360°  |  Home: reset view"
+    "  |  Drag: orbit  |  Scroll: zoom  |  Shift-drag: pan\n"
 )
 
-Entity.default_shader = lit_with_shadows_shader
-window.color = color.rgb(174, 207, 226)
-window.fps_counter.enabled = True
+WHITE = vector(0.88, 0.89, 0.86)
+WALL_WHITE = vector(0.82, 0.84, 0.82)
+WOOD = vector(0.43, 0.25, 0.13)
+WOOD_LIGHT = vector(0.58, 0.36, 0.2)
+WOOD_DARK = vector(0.27, 0.16, 0.1)
+CHARCOAL = vector(0.075, 0.09, 0.1)
+GLASS = vector(0.22, 0.43, 0.53)
+CONCRETE = vector(0.66, 0.67, 0.64)
+GRASS = vector(0.25, 0.39, 0.2)
+LEAF = vector(0.16, 0.34, 0.16)
+FLOWER = vector(0.87, 0.34, 0.48)
+SOIL = vector(0.25, 0.17, 0.11)
 
 
-COL_WHITE_WALL   = color.hex('#e8e4da')
-COL_WOOD_TEAK    = color.hex('#9a582a') 
-COL_WOOD_DARK    = color.hex('#543310')
-COL_ORANGE_PANEL = color.hex('#a85f3e')
-COL_BLACK_METAL  = color.hex('#1e293b')
-COL_GLASS        = color.hex('#294550')
-COL_CONCRETE     = color.hex('#c9c8bd')
-COL_GRASS        = color.hex('#527044')
-COL_PADDY        = color.hex('#78934c')
-COL_WATER        = color.hex('#287f91')
-COL_ROCK         = color.hex('#64748b')
-COL_FABRIC       = color.hex('#d6d3d1')
-COL_ROOF_SLATE   = color.hex('#334155')
-COL_GOLD         = color.hex('#f59e0b')
-
-# Hierarchical Entity Groups for Cutaways
-world_group        = Entity()
-landscape_group    = Entity(parent=world_group)
-ground_floor_group = Entity(parent=world_group)
-second_floor_group = Entity(parent=world_group)
-roof_group         = Entity(parent=world_group)
+def block(position, size, tint, opacity=1):
+    """Create a rectangular architectural or landscape element."""
+    return box(pos=position, size=size, color=tint, opacity=opacity)
 
 
-Entity(
-    parent=landscape_group,
-    model='plane',
-    scale=(200, 1, 200),
-    position=(0, -0.15, 0),
-    color=COL_PADDY
-)
-
-# Paddy Ridges / Dikes
-for offset in range(-80, 90, 40):
-    Entity(parent=landscape_group, model='cube', scale=(200, 0.08, 0.4), position=(0, -0.08, offset), color=color.hex('#687646'))
-    Entity(parent=landscape_group, model='cube', scale=(0.4, 0.08, 200), position=(offset, -0.08, 0), color=color.hex('#687646'))
-
-# Residential Lot Lawn (Elevated)
-lot_ground = Entity(
-    parent=landscape_group,
-    model='cube',
-    scale=(26, 0.3, 38),
-    position=(0, 0, 3),
-    color=COL_GRASS,
-    collider='box'
-)
-
-# Break up the lawn's broad flat color without hiding the house foundation.
-Entity(
-    parent=landscape_group,
-    model='plane',
-    scale=(25.8, 1, 37.8),
-    position=(0, 0.156, 3),
-    texture='grass',
-    texture_scale=(18, 24),
-    color=color.hex('#81936a')
-)
-
-# Concrete Driveway leading to Carport (Right side)
-Entity(
-    parent=landscape_group,
-    model='cube',
-    scale=(4.2, 0.32, 22),
-    position=(4.5, 0.01, 10),
-    color=COL_CONCRETE,
-    collider='box'
-)
-
-for z in range(1, 21, 2):
-    Entity(
-        parent=landscape_group,
-        model='cube',
-        scale=(4.0, 0.012, 0.025),
-        position=(4.5, 0.174, z),
-        color=color.hex('#c5c6b8')
-    )
-
-# Rectangular Stepping Stone Walkway across lawn
-for i in range(7):
-    Entity(
-        parent=landscape_group,
-        model='cube',
-        scale=(2.4, 0.34, 0.9),
-        position=(-1.0, 0.01, 4.5 + i * 1.6),
-        color=COL_CONCRETE
-    )
-
-# Decorative Pond / Swimming Pool (Front-left)
-pool_outer = Entity(
-    parent=landscape_group,
-    model=Cylinder(),
-    scale=(5.5, 0.5, 7.5),
-    position=(-6.5, 0.1, 10),
-    color=COL_ROCK
-)
-pool_water = Entity(
-    parent=landscape_group,
-    model=Cylinder(),
-    scale=(5.0, 0.52, 7.0),
-    position=(-6.5, 0.15, 10),
-    color=COL_WATER
-)
-
-# Natural River Boulders around Pond
-rock_coords = [
-    (-9.5, 0.4, 7), (-9.2, 0.45, 13), (-3.8, 0.35, 7.5), (-3.5, 0.4, 11),
-    (-7.5, 0.45, 13.8), (-5.2, 0.35, 13.8), (-6.5, 0.5, 6.5)
-]
-for rx, ry, rz in rock_coords:
-    Entity(
-        parent=landscape_group,
-        model='sphere',
-        scale=(0.9, 0.7, 0.9),
-        position=(rx, ry, rz),
-        color=COL_ROCK
-    )
-
-# Perimeter Fence with White Pillars & Wood Slats
-# Front Left Wall
-Entity(parent=landscape_group, model='cube', scale=(9, 1.4, 0.25), position=(-8.5, 0.7, 20), color=COL_ORANGE_PANEL, collider='box')
-Entity(parent=landscape_group, model='cube', scale=(9.2, 0.4, 0.4), position=(-8.5, 0.2, 20), color=COL_WHITE_WALL)
-
-# Front Wooden Entrance Gate (Slats)
-gate_center = Entity(parent=landscape_group, position=(4.5, 0, 20))
-Entity(parent=gate_center, model='cube', scale=(4.8, 1.6, 0.1), position=(0, 0.8, 0), color=COL_WOOD_DARK)
-for gx in [-1.8, -1.2, -0.6, 0, 0.6, 1.2, 1.8]:
-    Entity(parent=gate_center, model='cube', scale=(0.12, 1.5, 0.14), position=(gx, 0.8, 0), color=COL_WOOD_TEAK)
-
-# Gate White Concrete Posts
-Entity(parent=landscape_group, model='cube', scale=(0.7, 2.0, 0.7), position=(1.8, 1.0, 20), color=COL_WHITE_WALL, collider='box')
-Entity(parent=landscape_group, model='cube', scale=(0.7, 2.0, 0.7), position=(7.2, 1.0, 20), color=COL_WHITE_WALL, collider='box')
-
-# Side Fences
-Entity(parent=landscape_group, model='cube', scale=(0.25, 1.4, 34), position=(12, 0.7, 4), color=COL_ORANGE_PANEL, collider='box')
-Entity(parent=landscape_group, model='cube', scale=(0.25, 1.4, 34), position=(-12, 0.7, 4), color=COL_ORANGE_PANEL, collider='box')
-
-# Tropical Plants (Traveler's Palms / Banana Plants along Driveway)
-def create_banana_plant(x, z, s=1.0):
-    plant = Entity(parent=landscape_group, position=(x, 0, z))
-    Entity(parent=plant, model=Cylinder(), scale=(0.2*s, 1.8*s, 0.2*s), position=(0, 0.9*s, 0), color=color.hex('#3f6212'))
-    for ang in [0, 45, 90, 135, 180, 225, 270, 315]:
-        leaf = Entity(parent=plant, model='plane', scale=(0.8*s, 1, 2.2*s), position=(0, 1.5*s, 0), rotation=(35, ang, 0), color=color.hex('#65a30d'))
-        leaf.double_sided = True
-
-create_banana_plant(10.5, 16, 1.2)
-create_banana_plant(10.8, 13, 1.0)
-create_banana_plant(10.6, 9.5, 1.1)
-create_banana_plant(10.7, 6, 0.9)
-
-# Frangipani Trees near Pond & Carport
-def create_frangipani(x, z):
-    tree = Entity(parent=landscape_group, position=(x, 0, z))
-    Entity(parent=tree, model=Cylinder(), scale=(0.25, 2.2, 0.25), position=(0, 1.1, 0), rotation=(0, 0, 8), color=color.hex('#78716c'))
-    for canopy_x, canopy_y, canopy_z, canopy_scale, canopy_color in [
-        (-0.35, 2.65, 0.0, 1.15, '#477a43'),
-        (0.45, 2.85, 0.15, 1.2, '#56894a'),
-        (0.05, 3.25, -0.2, 1.0, '#629153'),
-        (0.75, 2.55, -0.15, 0.85, '#4d8146'),
-    ]:
-        Entity(
-            parent=tree,
-            model='sphere',
-            scale=(canopy_scale, canopy_scale * 0.75, canopy_scale),
-            position=(canopy_x, canopy_y, canopy_z),
-            color=color.hex(canopy_color)
+def add_window(position, width, height, face="front", panes=2):
+    """Build a blue-tinted glazed unit with a slim dark aluminum frame."""
+    x, y, z = position.x, position.y, position.z
+    frame = 0.075
+    depth = 0.1
+    if face == "front":
+        glass_z = z + 0.025
+        frame_z = z + 0.085
+        block(vector(x, y, glass_z), vector(width - 2 * frame, height - 2 * frame, 0.045), GLASS, 0.58)
+        block(vector(x, y - height / 2 + frame / 2, frame_z), vector(width, frame, depth), CHARCOAL)
+        block(vector(x, y + height / 2 - frame / 2, frame_z), vector(width, frame, depth), CHARCOAL)
+        for side in (-1, 1):
+            block(
+                vector(x + side * (width / 2 - frame / 2), y, frame_z),
+                vector(frame, height, depth),
+                CHARCOAL,
+            )
+        for pane in range(1, panes):
+            mullion_x = x - width / 2 + width * pane / panes
+            block(vector(mullion_x, y, frame_z + 0.01), vector(0.045, height - 0.08, 0.035), CHARCOAL)
+        block(
+            vector(x + width * 0.2, y + height * 0.06, z + 0.07),
+            vector(0.025, height * 0.62, 0.012),
+            vector(0.72, 0.83, 0.87),
+            0.34,
         )
-
-create_frangipani(-8, 5)
-create_frangipani(8.5, 4)
-
-def create_planter(x, z):
-    planter = Entity(parent=landscape_group, position=(x, 0, z))
-    Entity(parent=planter, model='cube', scale=(1.1, 0.38, 0.62), position=(0, 0.28, 0), color=color.hex('#5b5144'))
-    for leaf_x, leaf_scale in ((-0.28, 0.62), (0.25, 0.7), (0.0, 0.8)):
-        Entity(
-            parent=planter,
-            model='sphere',
-            scale=(leaf_scale, leaf_scale * 0.9, leaf_scale),
-            position=(leaf_x, 0.75, 0),
-            color=color.hex('#52764a')
-        )
-
-create_planter(-4.15, 3.1)
-create_planter(2.45, 3.0)
-
-# =============================================================================
-# 2. HOUSE GROUND FLOOR
-# =============================================================================
-
-# Ground Floor Foundation Slab
-Entity(
-    parent=ground_floor_group,
-    model='cube',
-    scale=(9.0, 0.3, 11.5),
-    position=(-0.5, 0.15, -1.5),
-    color=color.hex('#f1f5f9'),
-    collider='box'
-)
-
-# Covered Lounge Porch Slab (beneath balcony)
-Entity(
-    parent=ground_floor_group,
-    model='cube',
-    scale=(8.0, 0.28, 4.0),
-    position=(-1.0, 0.14, 2.5),
-    color=color.hex('#f1f5f9'),
-    collider='box'
-)
-
-# White Support Columns (Front corners under balcony)
-Entity(parent=ground_floor_group, model='cube', scale=(0.5, 3.4, 0.5), position=(-3.7, 1.85, 3.8), color=COL_WHITE_WALL, collider='box')
-Entity(parent=ground_floor_group, model='cube', scale=(0.5, 3.4, 0.5), position=(1.5, 1.85, 3.8), color=COL_WHITE_WALL, collider='box')
-for x in (-3.7, 1.5):
-    Entity(parent=ground_floor_group, model='cube', scale=(0.22, 0.34, 0.12), position=(x, 2.45, 4.07), color=COL_BLACK_METAL)
-    Entity(parent=ground_floor_group, model='cube', scale=(0.12, 0.18, 0.14), position=(x, 2.45, 4.15), color=color.hex('#f2c982'), unlit=True)
-
-# Outdoor Lounge Furniture (Under Balcony)
-lounge_grp = Entity(parent=ground_floor_group, position=(-1.0, 0.3, 2.8))
-Entity(parent=lounge_grp, model='cube', scale=(2.4, 0.25, 0.9), position=(0, 0.2, 0), color=COL_WOOD_DARK)
-Entity(parent=lounge_grp, model='cube', scale=(2.3, 0.2, 0.8), position=(0, 0.42, 0), color=COL_FABRIC)
-Entity(parent=lounge_grp, model='cube', scale=(2.3, 0.5, 0.2), position=(0, 0.65, -0.32), color=COL_FABRIC)
-Entity(parent=lounge_grp, model='cube', scale=(1.0, 0.3, 0.6), position=(0, 0.15, 0.9), color=COL_WOOD_DARK)
-
-# Front Floor-to-Ceiling Glass Sliding Doors & Black Frames
-Entity(parent=ground_floor_group, model='cube', scale=(5.2, 3.1, 0.08), position=(-1.1, 1.85, 0.8), color=COL_GLASS)
-Entity(parent=ground_floor_group, model='cube', scale=(5.3, 0.08, 0.12), position=(-1.1, 3.4, 0.8), color=COL_BLACK_METAL)
-Entity(parent=ground_floor_group, model='cube', scale=(5.3, 0.08, 0.12), position=(-1.1, 0.3, 0.8), color=COL_BLACK_METAL)
-for fx in [-3.7, -1.9, -0.2, 1.5]:
-    Entity(parent=ground_floor_group, model='cube', scale=(0.08, 3.2, 0.12), position=(fx, 1.85, 0.8), color=COL_BLACK_METAL)
-Entity(parent=ground_floor_group, model='cube', scale=(5.25, 0.06, 0.14), position=(-1.1, 1.85, 0.8), color=COL_BLACK_METAL)
-
-# Exterior Walls (Ground Floor)
-Entity(parent=ground_floor_group, model='cube', scale=(0.25, 3.3, 11.5), position=(-4.9, 1.95, -1.5), color=COL_WHITE_WALL, collider='box')
-Entity(parent=ground_floor_group, model='cube', scale=(9.0, 3.3, 0.25), position=(-0.5, 1.95, -7.2), color=COL_WHITE_WALL, collider='box')
-Entity(parent=ground_floor_group, model='cube', scale=(0.25, 3.3, 11.5), position=(3.9, 1.95, -1.5), color=COL_WHITE_WALL, collider='box')
-
-# Interior Partition (Powder room)
-Entity(parent=ground_floor_group, model='cube', scale=(2.4, 3.3, 0.15), position=(2.6, 1.95, -1.0), color=COL_WHITE_WALL, collider='box')
-
-# Living Room (Sofa, Coffee Table, Wood Slat TV Feature Wall, TV)
-liv = Entity(parent=ground_floor_group, position=(-2.2, 0.3, -1.2))
-Entity(parent=liv, model='cube', scale=(0.1, 3.0, 3.2), position=(-2.55, 1.5, 0), color=COL_WOOD_TEAK) # Wood slat wall
-Entity(parent=liv, model='cube', scale=(0.06, 1.1, 2.0), position=(-2.45, 1.7, 0), color=color.hex('#0a0a0a')) # TV
-Entity(parent=liv, model='cube', scale=(0.4, 0.35, 2.6), position=(-2.3, 0.5, 0), color=COL_BLACK_METAL) # Console
-Entity(parent=liv, model='cube', scale=(1.0, 0.45, 2.8), position=(0.5, 0.25, 0), color=COL_FABRIC) # Sofa
-Entity(parent=liv, model='cube', scale=(0.25, 0.5, 2.8), position=(1.0, 0.6, 0), color=COL_FABRIC)
-Entity(parent=liv, model=Cylinder(), scale=(1.3, 0.35, 1.3), position=(-0.8, 0.2, 0), color=color.hex('#f8fafc')) # Table
-Entity(parent=liv, model='cube', scale=(2.4, 0.02, 3.2), position=(-0.8, 0.01, 0), color=color.hex('#cbd5e1')) # Rug
-
-# Dining Area
-din = Entity(parent=ground_floor_group, position=(-2.2, 0.3, -4.5))
-Entity(parent=din, model='cube', scale=(1.4, 0.08, 2.4), position=(0, 0.75, 0), color=COL_WOOD_DARK)
-Entity(parent=din, model='cube', scale=(0.2, 0.08, 1.8), position=(0, 2.7, 0), color=COL_GOLD) # Chandelier
-for dx in [-0.9, 0.9]:
-    for dz in [-0.7, 0, 0.7]:
-        Entity(parent=din, model='cube', scale=(0.42, 0.45, 0.42), position=(dx, 0.22, dz), color=COL_FABRIC)
-
-# Kitchen with Island
-kit = Entity(parent=ground_floor_group, position=(1.0, 0.3, -5.2))
-Entity(parent=kit, model='cube', scale=(1.4, 0.9, 2.8), position=(0, 0.45, 0), color=COL_WHITE_WALL) # Waterfall island
-Entity(parent=kit, model='cube', scale=(0.7, 2.8, 2.8), position=(2.4, 1.4, 0), color=COL_WOOD_TEAK) # Cabinets
-for kz in [-0.8, 0, 0.8]:
-    Entity(parent=kit, model=Cylinder(), scale=(0.44, 0.65, 0.44), position=(-0.95, 0.32, kz), color=COL_WOOD_DARK)
-
-# Floating Staircase (Interior)
-stairs = Entity(parent=ground_floor_group, position=(2.6, 0.3, -1.8))
-for i in range(16):
-    Entity(
-        parent=stairs,
-        model='cube',
-        scale=(1.1, 0.08, 0.3),
-        position=(0, i * 0.2, i * 0.24),
-        color=COL_WOOD_DARK,
-        collider='box'
-    )
-
-# Exterior Staircase on Left Side (Matching Photo!)
-ext_stairs = Entity(parent=ground_floor_group, position=(-4.4, 0.3, 0.5))
-for i in range(15):
-    Entity(
-        parent=ext_stairs,
-        model='cube',
-        scale=(0.9, 0.06, 0.28),
-        position=(0, i * 0.21, 2.8 - i * 0.22),
-        color=COL_WOOD_DARK,
-        collider='box'
-    )
-
-# Attached Carport (Right Side)
-carport = Entity(parent=ground_floor_group, position=(5.5, 0, 0))
-Entity(parent=carport, model='cube', scale=(4.8, 0.35, 8.5), position=(0, 3.45, 0), color=COL_WHITE_WALL)
-Entity(parent=carport, model='cube', scale=(4.85, 0.08, 8.55), position=(0, 3.25, 0), color=COL_WOOD_TEAK)
-Entity(parent=carport, model='cube', scale=(0.4, 3.3, 0.4), position=(2.1, 1.65, 3.8), color=COL_WHITE_WALL, collider='box')
-Entity(parent=carport, model='cube', scale=(0.4, 3.3, 0.4), position=(2.1, 1.65, -3.8), color=COL_WHITE_WALL, collider='box')
-Entity(parent=carport, model='cube', scale=(0.08, 2.3, 1.2), position=(-1.5, 1.25, -2.5), color=COL_WOOD_DARK)
-
-# =============================================================================
-# 3. HOUSE SECOND FLOOR
-# =============================================================================
-
-# Second Floor Intermediate Slab
-Entity(
-    parent=second_floor_group,
-    model='cube',
-    scale=(9.0, 0.35, 11.5),
-    position=(-0.5, 3.45, -1.5),
-    color=color.hex('#f1f5f9'),
-    collider='box'
-)
-
-# Cantilevered Front Balcony
-Entity(
-    parent=second_floor_group,
-    model='cube',
-    scale=(8.0, 0.35, 4.0),
-    position=(-1.0, 3.45, 2.5),
-    color=color.hex('#f1f5f9'),
-    collider='box'
-)
-
-# Teak deck boards add visible material scale to the cantilevered balcony.
-for board in range(12):
-    Entity(
-        parent=second_floor_group,
-        model='cube',
-        scale=(7.75, 0.035, 0.24),
-        position=(-1.0, 3.65, 1.0 + board * 0.28),
-        color=color.hex('#79502f') if board % 2 else color.hex('#8a6038')
-    )
-
-# Balcony Black Metal Railings
-Entity(parent=second_floor_group, model='cube', scale=(7.8, 0.05, 0.05), position=(-1.0, 4.45, 4.3), color=COL_BLACK_METAL)
-for bx in range(-45, 28, 4):
-    Entity(parent=second_floor_group, model='cube', scale=(0.03, 1.0, 0.03), position=(bx * 0.1, 3.95, 4.3), color=COL_BLACK_METAL)
-Entity(parent=second_floor_group, model='cube', scale=(0.05, 0.05, 3.5), position=(-4.8, 4.45, 2.5), color=COL_BLACK_METAL)
-Entity(parent=second_floor_group, model='cube', scale=(0.05, 0.05, 3.5), position=(2.8, 4.45, 2.5), color=COL_BLACK_METAL)
-
-# Balcony Furniture & Ceiling Fan (visible in photo)
-Entity(parent=second_floor_group, model='cube', scale=(0.6, 0.6, 0.6), position=(-0.3, 3.8, 2.8), color=COL_WOOD_DARK)
-Entity(parent=second_floor_group, model='cube', scale=(0.6, 0.6, 0.6), position=(-1.7, 3.8, 2.8), color=COL_WOOD_DARK)
-Entity(parent=second_floor_group, model=Cylinder(), scale=(0.6, 0.45, 0.6), position=(-1.0, 3.75, 2.8), color=COL_BLACK_METAL)
-fan = Entity(parent=second_floor_group, position=(-1.0, 6.4, 2.2))
-Entity(parent=fan, model=Cylinder(), scale=(0.36, 0.15, 0.36), color=COL_BLACK_METAL)
-for r in [0, 90, 180, 270]:
-    Entity(parent=fan, model='cube', scale=(0.16, 0.02, 1.0), position=(0, 0, 0.5), rotation=(0, r, 0), color=COL_BLACK_METAL)
-
-# Cantilevered White Architectural Framing Box
-Entity(parent=second_floor_group, model='cube', scale=(8.2, 0.4, 4.2), position=(-1.0, 6.7, 2.5), color=COL_WHITE_WALL)
-Entity(parent=second_floor_group, model='cube', scale=(0.4, 3.2, 4.2), position=(-4.9, 5.1, 2.5), color=COL_WHITE_WALL, collider='box')
-
-# Upper Front Facade: Warm Teak Wood Slat Box
-Entity(parent=second_floor_group, model='cube', scale=(7.6, 3.0, 0.15), position=(-1.1, 5.1, 0.8), color=COL_WOOD_TEAK)
-Entity(parent=second_floor_group, model='cube', scale=(5.2, 2.6, 0.08), position=(-1.5, 4.95, 0.85), color=COL_GLASS)
-for x in (-3.95, 1.05):
-    Entity(parent=second_floor_group, model='cube', scale=(0.08, 2.75, 0.12), position=(x, 5.0, 0.72), color=COL_BLACK_METAL)
-for x in (-3.6, -2.35, -1.1, 0.15):
-    Entity(parent=second_floor_group, model='cube', scale=(0.045, 2.5, 0.1), position=(x, 4.95, 0.75), color=color.hex('#60777b'))
-for side_x in (-4.65, 1.35, 1.65, 1.95, 2.25, 2.55):
-    Entity(parent=second_floor_group, model='cube', scale=(0.055, 2.85, 0.12), position=(side_x, 5.1, 0.68), color=color.hex('#70401f'))
-for pane_y in (5.95, 2.8):
-    Entity(
-        parent=second_floor_group if pane_y > 4 else ground_floor_group,
-        model='cube',
-        scale=(4.8 if pane_y > 4 else 4.9, 0.045, 0.025),
-        position=(-1.5 if pane_y > 4 else -1.1, pane_y, 0.68),
-        color=color.hex('#7895a0')
-    )
-
-# Right Side Facade: Distinctive Orange-Brown / Terracotta Accent Panel with Casement Windows
-Entity(parent=second_floor_group, model='cube', scale=(0.3, 2.4, 4.0), position=(3.95, 5.2, 1.2), color=COL_ORANGE_PANEL, collider='box')
-Entity(parent=second_floor_group, model='cube', scale=(0.35, 1.4, 1.6), position=(3.95, 5.2, 1.2), color=COL_BLACK_METAL)
-Entity(parent=second_floor_group, model='cube', scale=(0.38, 1.25, 1.45), position=(3.95, 5.2, 1.2), color=COL_GLASS)
-
-# Exterior Walls (2nd Floor)
-Entity(parent=second_floor_group, model='cube', scale=(0.25, 3.1, 11.5), position=(-4.9, 5.1, -1.5), color=COL_WHITE_WALL, collider='box')
-Entity(parent=second_floor_group, model='cube', scale=(9.0, 3.1, 0.25), position=(-0.5, 5.1, -7.2), color=COL_WHITE_WALL, collider='box')
-Entity(parent=second_floor_group, model='cube', scale=(0.25, 3.1, 7.5), position=(3.9, 5.1, -3.5), color=COL_WHITE_WALL, collider='box')
-
-# Side windows bring detail to the otherwise blank carport-side wall.
-for z in (-5.0, -2.35):
-    Entity(parent=ground_floor_group, model='cube', scale=(0.08, 1.35, 1.65), position=(4.04, 2.0, z), color=COL_BLACK_METAL)
-    Entity(parent=ground_floor_group, model='cube', scale=(0.045, 1.2, 1.5), position=(4.09, 2.0, z), color=COL_GLASS)
-    Entity(parent=ground_floor_group, model='cube', scale=(0.035, 1.32, 0.045), position=(4.12, 2.0, z), color=color.hex('#70858a'))
-
-# Master Bedroom Suite (Bed, Nightstands, Bathtub)
-master = Entity(parent=second_floor_group, position=(-2.2, 3.65, -1.2))
-Entity(parent=master, model='cube', scale=(2.3, 0.4, 2.5), position=(0, 0.2, 0), color=COL_WOOD_DARK)
-Entity(parent=master, model='cube', scale=(2.1, 0.35, 2.3), position=(0, 0.5, 0.05), color=color.white)
-Entity(parent=master, model='cube', scale=(2.3, 1.1, 0.15), position=(0, 0.9, -1.15), color=COL_FABRIC)
-Entity(parent=master, model='cube', scale=(0.5, 0.45, 0.5), position=(-1.35, 0.25, -1.0), color=COL_WOOD_DARK)
-Entity(parent=master, model='cube', scale=(0.5, 0.45, 0.5), position=(1.35, 0.25, -1.0), color=COL_WOOD_DARK)
-Entity(parent=master, model=Cylinder(), scale=(1.4, 0.6, 0.85), position=(1.4, 0.35, 0.2), color=color.white) # Bathtub
-
-# Bedrooms 2 & 3
-Entity(parent=second_floor_group, model='cube', scale=(1.7, 0.4, 2.1), position=(-2.8, 3.85, -5.2), color=COL_WOOD_DARK)
-Entity(parent=second_floor_group, model='cube', scale=(1.6, 0.3, 2.0), position=(-2.8, 4.1, -5.2), color=color.white)
-Entity(parent=second_floor_group, model='cube', scale=(1.7, 0.4, 2.1), position=(1.8, 3.85, -5.2), color=COL_WOOD_DARK)
-Entity(parent=second_floor_group, model='cube', scale=(1.6, 0.3, 2.0), position=(1.8, 4.1, -5.2), color=color.white)
-
-# =============================================================================
-# 4. HOUSE ROOF (Asymmetrical Overhanging Shed Roof)
-# =============================================================================
-roof = Entity(parent=roof_group, position=(-0.8, 7.15, -1.5), rotation=(-1.7, 0, -2.3))
-
-# Slate Dark Grey Top
-Entity(parent=roof, model='cube', scale=(10.2, 0.28, 14.5), position=(0, 0, 0), color=COL_ROOF_SLATE)
-
-# Warm Wood Slat Soffit (Underside of roof)
-Entity(parent=roof, model='cube', scale=(10.15, 0.05, 14.45), position=(0, -0.16, 0), color=COL_WOOD_TEAK)
-for slat in range(25):
-    Entity(
-        parent=roof,
-        model='cube',
-        scale=(0.035, 0.035, 14.2),
-        position=(-4.8 + slat * 0.4, -0.205, 0),
-        color=color.hex('#80502c') if slat % 2 else color.hex('#96643a')
-    )
-
-# Upper Front Clerestory Box in Teak Slats
-Entity(parent=roof, model='cube', scale=(7.2, 0.9, 0.2), position=(-0.2, -0.6, 5.6), color=COL_WOOD_TEAK)
-
-# =============================================================================
-# 5. LIGHTING & ENVIRONMENT
-# =============================================================================
-lit_with_shadows_shader.default_input['shadow_color'] = color.rgba(36, 39, 45, 230)
-sun = DirectionalLight(shadow_map_resolution=(2048, 2048), y=45, z=25, x=35, shadows=True)
-sun.look_at(Vec3(0, 4, 1))
-
-# Ambient lighting
-ambient = AmbientLight(color=color.rgba(90, 96, 104, 255))
-
-# Sky
-sky = Sky(color=color.white)
-
-# =============================================================================
-# 6. CAMERA MODES & CONTROLLER
-# =============================================================================
-
-# Mode 1: House-centered orbit camera (arrow keys rotate around the villa)
-orbit_pivot = Entity(position=(0, 4, 1), rotation=(12, 160, 0))
-orbit_distance = 42
-
-# Mode 2: First Person Walkthrough Controller
-player = FirstPersonController(
-    position=(4.5, 1.7, 21.5),
-    speed=6,
-    mouse_sensitivity=Vec2(40, 40),
-    enabled=False
-)
-player.cursor.enabled = False
-
-# The controller resets the shared camera, so restore the orbit view after initialization.
-camera.parent = orbit_pivot
-camera.position = (0, 0, -orbit_distance)
-camera.rotation = Vec3.zero
-camera.fov = 38
-
-# State Management
-CURRENT_MODE = "ORBIT" # "ORBIT" or "WALK"
-CURRENT_TOD  = 0       # 0: Noon, 1: Golden, 2: Sunset, 3: Night
-ROOF_VISIBLE = True
-
-# =============================================================================
-# 7. ON-SCREEN UI & CONTROLS HUD
-# =============================================================================
-title_text = Text(
-    text="3D DREAM HOUSE: MODERN TROPICAL VILLA",
-    position=(-0.85, 0.47),
-    scale=1.2,
-    color=color.hex('#ea580c')
-)
-
-status_text = Text(
-    text="ORBIT: Arrow keys rotate 360° | Mouse wheel zooms",
-    position=(-0.85, 0.43),
-    scale=0.9,
-    color=color.white
-)
-
-help_panel = Text(
-    text="CONTROLS:\n[ARROWS] Rotate house view 360°\n[Mouse Wheel] Zoom in / out\n[TAB] Switch Walk / Orbit\n[R] Toggle Roof\n[1] Ground Floor | [2] 2nd Floor | [3] All\n[L] Time of Day | [H] Reset View",
-    position=(-0.85, 0.20),
-    scale=0.75,
-    color=color.rgba(255, 255, 255, 220),
-    background=True
-)
-
-def toggle_camera_mode():
-    global CURRENT_MODE
-    if CURRENT_MODE == "ORBIT":
-        CURRENT_MODE = "WALK"
-        orbit_pivot.enabled = False
-        player.position = (4.5, 1.7, 21.5)
-        player.look_at((4.5, 1.7, 10))
-        player.enabled = True
-        mouse.locked = True
-        status_text.text = "Camera Mode: WALKTHROUGH (WASD: Move | Mouse: Look | Shift: Run | TAB: Exit)"
-        status_text.color = color.hex('#22c55e')
     else:
-        CURRENT_MODE = "ORBIT"
-        player.enabled = False
-        mouse.locked = False
-        orbit_pivot.enabled = True
-        camera.parent = orbit_pivot
-        camera.position = (0, 0, -orbit_distance)
-        camera.rotation = Vec3.zero
-        camera.fov = 38
-        status_text.text = "ORBIT: Arrow keys rotate 360° | Mouse wheel zooms"
-        status_text.color = color.white
+        facing = 1 if face == "right" else -1
+        glass_x = x + facing * 0.025
+        frame_x = x + facing * 0.085
+        block(vector(glass_x, y, z), vector(0.045, height - 2 * frame, width - 2 * frame), GLASS, 0.58)
+        block(vector(frame_x, y - height / 2 + frame / 2, z), vector(depth, frame, width), CHARCOAL)
+        block(vector(frame_x, y + height / 2 - frame / 2, z), vector(depth, frame, width), CHARCOAL)
+        for side in (-1, 1):
+            block(
+                vector(frame_x, y, z + side * (width / 2 - frame / 2)),
+                vector(depth, height, frame),
+                CHARCOAL,
+            )
+        block(vector(frame_x, y, z), vector(depth, height, 0.045), CHARCOAL)
 
-def toggle_roof():
-    global ROOF_VISIBLE
-    ROOF_VISIBLE = not ROOF_VISIBLE
-    roof_group.enabled = ROOF_VISIBLE
 
-def set_floor(floor_num):
-    if floor_num == 1:
-        ground_floor_group.enabled = True
-        second_floor_group.enabled = False
-        roof_group.enabled = False
-    elif floor_num == 2:
-        ground_floor_group.enabled = False
-        second_floor_group.enabled = True
-        roof_group.enabled = False
-    else:
-        ground_floor_group.enabled = True
-        second_floor_group.enabled = True
-        roof_group.enabled = ROOF_VISIBLE
+def build_windows():
+    """Place the floor-to-ceiling glazing, entry door, and upper windows."""
+    # Ground-floor living-room glazing.
+    add_window(vector(-4.25, 1.95, 5.08), 2.45, 2.65, panes=2)
+    add_window(vector(1.7, 1.98, 5.08), 4.3, 2.7, panes=3)
 
-def cycle_lighting():
-    global CURRENT_TOD
-    CURRENT_TOD = (CURRENT_TOD + 1) % 4
-    if CURRENT_TOD == 0: # Tropical Noon
-        sky.color = color.rgb(160, 200, 240)
-        sun.color = color.white
-        sun.position = (35, 45, 25)
-    elif CURRENT_TOD == 1: # Golden Hour
-        sky.color = color.rgb(251, 146, 60)
-        sun.color = color.rgb(255, 140, 40)
-        sun.position = (40, 18, 20)
-    elif CURRENT_TOD == 2: # Sunset
-        sky.color = color.rgb(124, 45, 18)
-        sun.color = color.rgb(225, 29, 72)
-        sun.position = (45, 8, 15)
-    elif CURRENT_TOD == 3: # Night
-        sky.color = color.rgb(5, 10, 25)
-        sun.color = color.rgb(60, 90, 150)
-        sun.position = (-20, 30, -20)
+    # Timber entrance door with a narrow glazed sidelight.
+    block(vector(-1.75, 1.79, 5.16), vector(1.35, 2.5, 0.12), WOOD)
+    for slat_x in (-2.23, -2.04, -1.85, -1.66, -1.47, -1.28):
+        block(vector(slat_x, 1.79, 5.23), vector(0.025, 2.35, 0.012), WOOD_LIGHT)
+    add_window(vector(-0.72, 1.98, 5.08), 0.42, 2.55, panes=1)
+    cylinder(pos=vector(-1.28, 1.78, 5.29), axis=vector(0, 0.24, 0), radius=0.025, color=vector(0.72, 0.68, 0.52))
 
-# On-screen Quick Action Buttons
-btn_walk = Button(text="Toggle Walk/Orbit [TAB]", scale=(0.22, 0.05), position=(0.75, 0.44), color=color.hex('#ea580c'))
-btn_walk.on_click = toggle_camera_mode
+    # Upper-floor sliding doors open onto the balcony.
+    add_window(vector(-0.05, 5.05, 5.08), 4.65, 2.45, panes=3)
+    # Rectangular windows on the upper side elevations.
+    add_window(vector(6.08, 5.12, -1.25), 1.7, 1.65, face="right", panes=1)
+    add_window(vector(-6.08, 5.12, -1.2), 1.7, 1.65, face="left", panes=1)
 
-btn_roof = Button(text="Toggle Roof [R]", scale=(0.22, 0.05), position=(0.75, 0.37), color=color.hex('#0284c7'))
-btn_roof.on_click = toggle_roof
 
-btn_tod = Button(text="Lighting [L]", scale=(0.22, 0.05), position=(0.75, 0.30), color=color.hex('#d97706'))
-btn_tod.on_click = cycle_lighting
+def build_house():
+    """Build the two-storey shell, floors, white facade, and wood feature wall."""
+    # Raised foundation and story slabs.
+    block(vector(0, 0.53, 0), vector(12.7, 0.32, 10.8), CONCRETE)
+    block(vector(0, 3.68, 0), vector(12.25, 0.28, 10.45), WALL_WHITE)
 
-# =============================================================================
-# 8. KEYBOARD INPUT EVENT HANDLER
-# =============================================================================
-def input(key):
-    global orbit_distance
-    if key == 'tab':
-        toggle_camera_mode()
-    elif key == 'r':
-        toggle_roof()
-    elif key == '1':
-        set_floor(1)
-    elif key == '2':
-        set_floor(2)
-    elif key == '3':
-        set_floor(3)
-    elif key == 'l':
-        cycle_lighting()
-    elif key == 'h':
-        if CURRENT_MODE == "ORBIT":
-            orbit_pivot.rotation = (12, 160, 0)
-            orbit_distance = 42
-            camera.position = (0, 0, -orbit_distance)
-            camera.fov = 38
-        else:
-            player.position = (4.5, 1.7, 21.5)
-            player.look_at((4.5, 1.7, 10))
-    elif CURRENT_MODE == "ORBIT" and key in ("scroll up", "scroll down"):
-        orbit_distance = clamp(orbit_distance + (3 if key == "scroll down" else -3), 16, 50)
-        camera.z = -orbit_distance
+    # Ground-floor rear and side walls.
+    block(vector(0, 2.12, -5.08), vector(12, 3.0, 0.22), WALL_WHITE)
+    for x in (-5.92, 5.92):
+        block(vector(x, 2.12, 0), vector(0.22, 3.0, 10), WALL_WHITE)
 
-# Gentle water animation
-def update():
-    pool_water.rotation_y += time.dt * 4
-    if CURRENT_MODE == "ORBIT":
-        orbit_pivot.rotation_y += (held_keys["right arrow"] - held_keys["left arrow"]) * 60 * time.dt
-        orbit_pivot.rotation_x = clamp(
-            orbit_pivot.rotation_x + (held_keys["up arrow"] - held_keys["down arrow"]) * 40 * time.dt,
-            5,
-            75,
+    # White front columns and continuous lintel leave the main glazing exposed.
+    for x in (-5.75, -2.95, -0.98, 4.02, 5.75):
+        block(vector(x, 2.12, 5.08), vector(0.28, 3.0, 0.3), WHITE)
+    block(vector(0, 3.48, 5.08), vector(12, 0.28, 0.3), WHITE)
+    block(vector(0, 0.78, 5.08), vector(12, 0.32, 0.3), WHITE)
+
+    # Upper-floor side and rear walls.
+    block(vector(0, 5.13, -5.08), vector(12, 2.62, 0.22), WALL_WHITE)
+    for x in (-5.92, 5.92):
+        block(vector(x, 5.13, 0), vector(0.22, 2.62, 10), WALL_WHITE)
+
+    # White front end panels frame the natural timber feature wall.
+    block(vector(-4.82, 5.13, 5.08), vector(2.15, 2.62, 0.24), WHITE)
+    block(vector(4.82, 5.13, 5.08), vector(2.15, 2.62, 0.24), WHITE)
+    # Timber panels flank the upper sliding doors, with a matching header.
+    for x in (-3.35, 3.25):
+        block(vector(x, 5.15, 5.23), vector(1.0, 2.45, 0.12), WOOD)
+        for slat in range(1, 8):
+            slat_x = x - 0.5 + slat * (1.0 / 8)
+            block(vector(slat_x, 5.15, 5.31), vector(0.035, 2.35, 0.025), WOOD_LIGHT)
+    block(vector(0, 6.35, 5.22), vector(5.65, 0.22, 0.14), WOOD)
+
+    # Subtle timber fins add depth to the upper side elevations.
+    for z in range(-3, 4):
+        block(vector(6.055, 5.12, z), vector(0.12, 2.25, 0.055), WOOD_LIGHT)
+
+    build_windows()
+    build_roof()
+
+
+def build_roof():
+    """Create broad flat roof overhangs and a raised timber roof screen."""
+    block(vector(0, 6.62, 0), vector(13.5, 0.36, 11.8), CHARCOAL)
+    block(vector(0, 6.83, 0), vector(13.65, 0.08, 11.95), WHITE)
+
+    # Raised, open timber screen feature on the roof; it is not another floor.
+    for x in (-4.2, 4.2):
+        block(vector(x, 7.42, -0.4), vector(0.16, 1.05, 5.6), WOOD_DARK)
+    block(vector(0, 7.94, -0.4), vector(8.55, 0.16, 5.75), WOOD)
+    for x in range(-38, 39, 3):
+        block(vector(x / 10, 7.42, 2.45), vector(0.045, 0.95, 0.06), WOOD_LIGHT)
+
+
+def build_balcony():
+    """Build the front balcony with metal railing and a small outdoor dining set."""
+    block(vector(0, 3.9, 6.25), vector(6.5, 0.24, 2.65), CONCRETE)
+    # Front balustrade: round metal top/bottom rails and evenly spaced posts.
+    cylinder(pos=vector(0, 5.0, 7.55), axis=vector(6.25, 0, 0), radius=0.055, color=CHARCOAL)
+    cylinder(pos=vector(0, 4.08, 7.55), axis=vector(6.25, 0, 0), radius=0.045, color=CHARCOAL)
+    for index in range(19):
+        x = -3.0 + index * (6.0 / 18)
+        cylinder(pos=vector(x, 4.08, 7.55), axis=vector(0, 0.92, 0), radius=0.025, color=CHARCOAL)
+    # Short return rails at both balcony sides.
+    for x in (-3.05, 3.05):
+        cylinder(pos=vector(x, 4.08, 6.25), axis=vector(0, 0.92, 0), radius=0.035, color=CHARCOAL)
+        cylinder(pos=vector(x, 5.0, 6.25), axis=vector(0, 0, 1.3), radius=0.045, color=CHARCOAL)
+
+    # Minimal table and four chairs, all kept within the balcony footprint.
+    block(vector(0, 4.55, 6.25), vector(1.25, 0.09, 0.8), WOOD_LIGHT)
+    for x in (-0.48, 0.48):
+        for z in (5.96, 6.54):
+            cylinder(pos=vector(x, 4.15, z), axis=vector(0, 0.4, 0), radius=0.035, color=CHARCOAL)
+    for x in (-1.05, 1.05):
+        for z in (5.95, 6.55):
+            block(vector(x, 4.32, z), vector(0.48, 0.08, 0.42), WOOD)
+            for leg_x in (-0.18, 0.18):
+                for leg_z in (-0.14, 0.14):
+                    cylinder(
+                        pos=vector(x + leg_x, 4.08, z + leg_z),
+                        axis=vector(0, 0.24, 0),
+                        radius=0.018,
+                        color=CHARCOAL,
+                    )
+
+
+def build_carport():
+    """Add the right-side covered parking bay and its white support columns."""
+    block(vector(9.25, 3.35, 0.2), vector(7.3, 0.28, 10.5), WHITE)
+    for x in (6.3, 12.2):
+        for z in (-4.45, 4.8):
+            block(vector(x, 1.82, z), vector(0.28, 3.05, 0.28), WHITE)
+    block(vector(9.25, 0.47, 0.2), vector(7.4, 0.12, 10.7), CONCRETE)
+
+
+def build_pool():
+    """Create a raised rectangular pool with pale coping and decorative stones."""
+    pool_x, pool_z = -8.0, 10.0
+    block(vector(pool_x, 0.48, pool_z), vector(5.6, 0.42, 7.4), WHITE)
+    block(vector(pool_x, 0.63, pool_z), vector(5.1, 0.16, 6.9), vector(0.13, 0.4, 0.55), 0.82)
+    block(vector(pool_x, 0.73, pool_z), vector(5.3, 0.08, 7.1), vector(0.3, 0.62, 0.72), 0.5)
+    for x, z, radius in (
+        (-10.9, 6.2, 0.42),
+        (-10.8, 13.9, 0.5),
+        (-5.1, 6.6, 0.36),
+        (-5.0, 13.6, 0.46),
+        (-8.2, 14.0, 0.34),
+        (-8.9, 6.0, 0.3),
+    ):
+        sphere(pos=vector(x, 0.58, z), radius=radius, color=vector(0.43, 0.45, 0.41))
+
+
+def build_palm(x, z, scale=1):
+    """Create a tropical palm with a textured-looking trunk and tapered fronds."""
+    trunk_height = 4.2 * scale
+    cylinder(
+        pos=vector(x, 0.45, z),
+        axis=vector(-0.16 * scale, trunk_height, 0),
+        radius=0.19 * scale,
+        color=WOOD,
+    )
+    crown = vector(x - 0.16 * scale, 0.45 + trunk_height, z)
+    for index in range(9):
+        angle = radians(index * 40)
+        direction = vector(cos(angle), -0.28 + 0.035 * (index % 3), sin(angle))
+        ellipsoid(
+            pos=crown + direction * (1.1 * scale),
+            size=vector(0.24 * scale, 0.12 * scale, 2.5 * scale),
+            axis=direction,
+            color=LEAF if index % 2 else vector(0.22, 0.4, 0.2),
         )
 
 
-app.run()
+def build_plant(x, z, scale=1, flowering=False):
+    """Add a small cluster of rounded foliage and optional pink blossoms."""
+    cylinder(
+        pos=vector(x, 0.4, z),
+        axis=vector(0, 0.12, 0),
+        radius=0.46 * scale,
+        color=SOIL,
+    )
+    for dx, dz, size in ((-0.25, 0, 0.62), (0.22, -0.12, 0.68), (0.02, 0.25, 0.58), (-0.1, -0.22, 0.48)):
+        sphere(
+            pos=vector(x + dx * scale, 0.78 * scale, z + dz * scale),
+            radius=size * 0.55 * scale,
+            color=LEAF,
+        )
+    if flowering:
+        for dx, dz in ((-0.28, 0.03), (0.2, -0.14), (0.04, 0.28), (0.18, 0.12), (-0.08, -0.22)):
+            sphere(
+                pos=vector(x + dx * scale, 1.08 * scale, z + dz * scale),
+                radius=0.085 * scale,
+                color=FLOWER,
+            )
+
+
+def build_garden():
+    """Lay out the lawn, field, paths, driveway, trees, and ornamental plants."""
+    # The broad field and the raised, rectangular landscaped property.
+    block(vector(0, -0.22, 2), vector(240, 0.25, 240), vector(0.34, 0.48, 0.25))
+    block(vector(0, 0.12, 3.5), vector(28, 0.42, 34), CONCRETE)
+    block(vector(0, 0.36, 3.5), vector(27.4, 0.08, 33.4), GRASS)
+
+    # Light concrete driveway runs from the front gate to the carport.
+    block(vector(8.6, 0.43, 12.0), vector(5.0, 0.08, 16.0), vector(0.72, 0.72, 0.68))
+    for z in range(6, 20, 2):
+        block(vector(8.6, 0.48, z), vector(4.8, 0.015, 0.025), vector(0.62, 0.64, 0.62))
+
+    # Front stepping-stone path leading to the entry.
+    for index in range(6):
+        block(
+            vector(-1.8, 0.48, 8.5 + index * 1.35),
+            vector(2.0, 0.12, 0.92),
+            vector(0.79, 0.79, 0.74),
+        )
+
+    build_pool()
+    for x, z, scale in (
+        (-12, 4, 1.0),
+        (-11.6, 16, 0.9),
+        (-5.1, 16.0, 0.82),
+        (5.7, 11.8, 0.82),
+        (12.2, 11.0, 0.95),
+        (4.7, 17.0, 0.75),
+    ):
+        build_plant(x, z, scale, flowering=True)
+    build_palm(-11.8, 3.4, 1.0)
+    build_palm(12.0, 5.6, 0.9)
+
+    # Low ornamental grasses near the path and garden bed.
+    for x, z in ((-5.0, 7.2), (4.8, 7.4), (6.1, 15.0), (11.4, 16.3)):
+        for index in range(7):
+            angle = radians(index * (360 / 7))
+            cone(
+                pos=vector(x, 0.48, z),
+                axis=vector(0.24 * cos(angle), 0.65, 0.24 * sin(angle)),
+                radius=0.09,
+                color=vector(0.32, 0.46, 0.23),
+            )
+
+
+def build_fence():
+    """Enclose the property with timber slats, masonry posts, and a sliding gate."""
+    fence_y = 1.15
+    fence_z = 20.0
+    gate_left, gate_right = 6.0, 11.2
+    post_positions = (-13, -7, -1, 5.8, 11.4, 13)
+    for x in post_positions:
+        block(vector(x, 1.05, fence_z), vector(0.34, 2.1, 0.38), WHITE)
+
+    def slat_section(start, end):
+        count = int((end - start) / 0.34)
+        for index in range(count):
+            x = start + 0.18 + index * 0.34
+            block(vector(x, fence_y, fence_z), vector(0.23, 1.55, 0.16), WOOD)
+        block(vector((start + end) / 2, 0.43, fence_z), vector(end - start, 0.12, 0.2), WOOD_DARK)
+        block(vector((start + end) / 2, 1.82, fence_z), vector(end - start, 0.12, 0.2), WOOD_DARK)
+
+    slat_section(-13, gate_left)
+    slat_section(gate_right, 13)
+    # Sliding timber gate across the central entrance opening.
+    gate_center = (gate_left + gate_right) / 2
+    block(vector(gate_center, 1.08, 19.72), vector(4.85, 1.65, 0.16), WOOD_DARK)
+    for index in range(17):
+        x = gate_center - 2.3 + index * 0.29
+        block(vector(x, 1.08, 19.61), vector(0.16, 1.53, 0.11), WOOD_LIGHT)
+
+    # Side fence lines continue toward the back corners.
+    for x in (-13, 13):
+        for index in range(47):
+            z = -13 + index * 0.7
+            block(vector(x, fence_y, z), vector(0.16, 1.55, 0.22), WOOD)
+        block(vector(x, 0.43, 3.0), vector(0.2, 0.12, 33), WOOD_DARK)
+        block(vector(x, 1.82, 3.0), vector(0.2, 0.12, 33), WOOD_DARK)
+
+
+def build_stairs():
+    """Add broad, low-profile exterior steps at the main entrance."""
+    for index in range(4):
+        block(
+            vector(-1.75, 0.56 - index * 0.07, 5.72 + index * 0.58),
+            vector(2.0, 0.18, 0.82),
+            CONCRETE,
+        )
+
+
+def update_camera():
+    """Position the camera using its orbit angles around the house."""
+    horizontal_distance = orbit["distance"] * cos(orbit["elevation"])
+    scene.camera.pos = camera_target + vector(
+        horizontal_distance * sin(orbit["yaw"]),
+        orbit["distance"] * sin(orbit["elevation"]),
+        horizontal_distance * cos(orbit["yaw"]),
+    )
+    scene.camera.axis = camera_target - scene.camera.pos
+    scene.camera.up = vector(0, 1, 0)
+
+
+def on_keydown(event):
+    """Orbit the camera with arrow keys and restore its initial view with Home."""
+    key = event.key.lower().replace("arrow", "")
+    orbit_step = radians(8)
+    elevation_step = radians(5)
+
+    if key == "left":
+        orbit["yaw"] = (orbit["yaw"] - orbit_step) % (2 * pi)
+    elif key == "right":
+        orbit["yaw"] = (orbit["yaw"] + orbit_step) % (2 * pi)
+    elif key == "up":
+        orbit["elevation"] = min(radians(80), orbit["elevation"] + elevation_step)
+    elif key == "down":
+        orbit["elevation"] = max(radians(5), orbit["elevation"] - elevation_step)
+    elif key == "home":
+        orbit.update(yaw=radians(39.9), elevation=radians(19.7), distance=38.1)
+    else:
+        return
+
+    update_camera()
+
+
+def build_scene():
+    """Assemble all architectural and landscape components."""
+    # Soft cloud shapes and a subtle contact shadow, without a rooftop sun prop.
+    for position, size in (
+        (vector(-15, 14, -32), vector(8, 1.3, 1.2)),
+        (vector(-11, 14.3, -32), vector(5, 1.5, 1.2)),
+        (vector(12, 13, -35), vector(7, 1.2, 1.1)),
+        (vector(16, 13.4, -35), vector(5, 1.4, 1.1)),
+    ):
+        ellipsoid(pos=position, size=size, color=WHITE, opacity=0.38)
+    ellipsoid(
+        pos=vector(0, 0.42, 0),
+        size=vector(15, 0.04, 12),
+        color=vector(0.22, 0.24, 0.22),
+        opacity=0.18,
+    )
+
+    build_garden()
+    build_house()
+    build_balcony()
+    build_carport()
+    build_stairs()
+    build_fence()
+
+
+build_scene()
+scene.bind("keydown", on_keydown)
+update_camera()
+
+while True:
+    rate(60)
